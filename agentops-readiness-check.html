@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentOps Readiness Check — datawithnish</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#080b1c;          /* deepest midnight */
+    --panel:#111636;        /* blue-violet panel */
+    --panel-2:#1a2150;      /* lifted panel */
+    --line:#2f2a6b;         /* violet hairline */
+    --text:#ece8ff;
+    --muted:#9b93cf;
+    --soft:#bcb5e8;         /* secondary body text, brighter than muted */
+    --crit:#e0533a;         /* ember red — blocked / low */
+    --warn:#ff9a3c;         /* orange — canary / mid */
+    --pass:#ffc24b;         /* gold — staged / high */
+    --ship:#ffe588;         /* brilliant gold — ship */
+    --violet:#7b5cff;       /* cool glow accent */
+    --shadow:4px 4px 0 rgba(0,0,0,.55);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto}
+    *,*::before,*::after{animation:none!important;transition:none!important}
+  }
+  body{
+    background:var(--ink);
+    color:var(--text);
+    font-family:'Pixelify Sans',system-ui,-apple-system,sans-serif;
+    font-size:17px;
+    line-height:1.62;
+    -webkit-font-smoothing:none;
+    image-rendering:pixelated;
+    position:relative;
+    overflow-x:hidden;
+  }
+  /* ── Ambient: starfield + citadel glow (amber top-right, violet bottom-left) ── */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+    background:
+      radial-gradient(1100px 700px at 92% -8%, rgba(255,140,58,.20), transparent 60%),
+      radial-gradient(900px 700px at -10% 110%, rgba(123,92,255,.18), transparent 60%),
+      radial-gradient(1px 1px at 12% 18%, #fff 99%, transparent),
+      radial-gradient(1px 1px at 28% 62%, #cfd6ff 99%, transparent),
+      radial-gradient(1px 1px at 47% 12%, #fff 99%, transparent),
+      radial-gradient(1px 1px at 63% 44%, #ffd9a8 99%, transparent),
+      radial-gradient(1px 1px at 78% 26%, #fff 99%, transparent),
+      radial-gradient(1px 1px at 88% 70%, #cfd6ff 99%, transparent),
+      radial-gradient(1px 1px at 38% 84%, #fff 99%, transparent),
+      radial-gradient(1px 1px at 7% 78%, #ffd9a8 99%, transparent),
+      var(--ink);
+  }
+  /* faint CRT scanlines */
+  body::after{
+    content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.35;
+    background:repeating-linear-gradient(to bottom, rgba(0,0,0,.18) 0 1px, transparent 1px 3px);
+    mix-blend-mode:multiply;
+  }
+  .mono{font-family:'Press Start 2P','Pixelify Sans',monospace}
+  .wrap{max-width:860px;margin:0 auto;padding:0 20px 96px}
+
+  /* ── Header ── */
+  header{padding:54px 0 30px;border-bottom:2px solid var(--line)}
+  .eyebrow{
+    font-family:'Press Start 2P',monospace;
+    font-size:11px;letter-spacing:.06em;line-height:1.5;
+    color:var(--pass);margin-bottom:20px;
+    text-shadow:0 0 14px rgba(255,194,75,.45);
+  }
+  .eyebrow .dim{color:var(--violet)}
+  h1{
+    font-size:clamp(32px,6vw,54px);font-weight:700;letter-spacing:.01em;line-height:1.04;
+    margin-bottom:16px;
+    text-shadow:0 0 26px rgba(255,160,70,.25);
+  }
+  h1 .amber{color:var(--pass)}
+  .sub{color:var(--soft);font-size:17px;max-width:60ch}
+  .sub b{color:var(--text);font-weight:600}
+
+  /* ── Domains ── */
+  .domain{margin-top:32px}
+  .domain-head{display:flex;align-items:baseline;gap:12px;margin-bottom:6px}
+  .domain-id{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--violet);letter-spacing:.04em}
+  .domain-name{font-size:21px;font-weight:700;letter-spacing:.01em}
+  .domain-why{color:var(--muted);font-size:15px;margin-bottom:16px;max-width:66ch}
+
+  .chips{display:flex;flex-wrap:wrap;gap:10px}
+  .chip{
+    font-family:'Pixelify Sans',sans-serif;font-weight:500;
+    font-size:15px;text-align:left;
+    background:var(--panel);color:var(--muted);
+    border:2px solid var(--line);border-radius:0;
+    padding:10px 15px;cursor:pointer;
+    transition:background .1s,color .1s,border-color .1s,box-shadow .1s,transform .06s;
+    display:flex;align-items:center;gap:9px;
+    box-shadow:2px 2px 0 rgba(0,0,0,.4);
+  }
+  .chip::before{
+    content:"";width:9px;height:9px;border-radius:0;
+    background:var(--line);flex-shrink:0;transition:background .1s,box-shadow .1s;
+  }
+  .chip:hover{border-color:var(--violet);color:var(--text)}
+  .chip:focus-visible{outline:2px solid var(--pass);outline-offset:2px}
+  .chip.on{
+    background:rgba(255,194,75,.13);color:var(--text);border-color:var(--pass);
+    box-shadow:2px 2px 0 rgba(0,0,0,.4), 0 0 14px rgba(255,194,75,.28);
+  }
+  .chip.on::before{background:var(--pass);box-shadow:0 0 8px var(--pass)}
+  .chip:active{transform:translate(1px,1px)}
+
+  /* ── Run bar ── */
+  .runbar{
+    position:sticky;bottom:0;margin-top:40px;
+    background:linear-gradient(to top, var(--ink) 72%, transparent);
+    padding:18px 0 22px;
+  }
+  .runbar-inner{
+    display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+    background:var(--panel);border:2px solid var(--line);border-radius:0;
+    padding:14px 18px;box-shadow:var(--shadow);
+  }
+  .progress-label{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--muted);letter-spacing:.02em}
+  .progress-label b{color:var(--pass);font-weight:400}
+  #runBtn{
+    margin-left:auto;
+    font-family:'Press Start 2P',monospace;font-size:12px;
+    letter-spacing:.02em;
+    background:var(--pass);color:#1c1200;
+    border:2px solid #ffdf8a;border-radius:0;padding:14px 20px;cursor:pointer;
+    box-shadow:4px 4px 0 rgba(0,0,0,.5), 0 0 18px rgba(255,194,75,.35);
+    transition:transform .1s, box-shadow .1s;
+  }
+  #runBtn:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 rgba(0,0,0,.5), 0 0 26px rgba(255,194,75,.5)}
+  #runBtn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 rgba(0,0,0,.5)}
+  #runBtn:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+
+  /* ── Results ── */
+  #results{display:none;margin-top:42px}
+  #results.show{display:block;animation:fadeUp .45s steps(8)}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+  .gate{
+    border:2px solid var(--line);border-radius:0;
+    background:var(--panel);padding:26px 24px;box-shadow:var(--shadow);
+    display:flex;gap:24px;align-items:center;flex-wrap:wrap;
+  }
+  .gate-light{
+    width:74px;height:74px;border-radius:0;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Press Start 2P',monospace;font-size:14px;
+    box-shadow:0 0 22px rgba(255,194,75,.25), inset 0 0 0 2px rgba(0,0,0,.3);
+  }
+  .gate-text h2{font-size:27px;font-weight:700;letter-spacing:.01em;margin-bottom:6px}
+  .gate-text .mono{font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:9px;display:block}
+  .gate-text p{color:var(--soft);font-size:15.5px;max-width:58ch}
+
+  .trace{
+    margin-top:24px;border:2px solid var(--line);border-radius:0;
+    background:var(--panel);padding:22px;box-shadow:var(--shadow);
+  }
+  .trace h3{
+    font-family:'Press Start 2P',monospace;font-size:10px;letter-spacing:.06em;line-height:1.6;
+    text-transform:uppercase;color:var(--muted);margin-bottom:20px;
+  }
+  .span-row{display:grid;grid-template-columns:200px 1fr 52px;gap:14px;align-items:center;margin-bottom:14px}
+  .span-name{font-size:15px;color:var(--text);font-weight:500}
+  .span-track{height:20px;background:var(--panel-2);border:1px solid var(--line);border-radius:0;overflow:visible;position:relative}
+  .span-bar{height:100%;border-radius:0;width:0;transition:width 1s steps(20);filter:drop-shadow(0 0 6px rgba(255,170,80,.4))}
+  .span-pct{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--muted);text-align:right}
+  @media (max-width:640px){
+    .span-row{grid-template-columns:1fr 52px}
+    .span-name{grid-column:1 / -1}
+  }
+
+  .diagnosis{margin-top:24px;display:grid;gap:18px}
+  .card{
+    border:2px solid var(--line);border-radius:0;
+    background:var(--panel);padding:22px;box-shadow:var(--shadow);
+  }
+  .card h4{
+    font-family:'Press Start 2P',monospace;font-size:10px;letter-spacing:.05em;line-height:1.5;
+    text-transform:uppercase;margin-bottom:14px;
+  }
+  .card.profile h4{color:var(--pass)}
+  .card.gaps h4{color:var(--warn)}
+  .card p, .card li{color:var(--soft);font-size:15.5px}
+  .card p b{color:var(--text);font-weight:600}
+  .card ul{list-style:none;display:grid;gap:12px;margin-top:4px}
+  .card li{padding-left:22px;position:relative}
+  .card li::before{content:"\25B6";position:absolute;left:0;top:1px;color:var(--warn);font-size:11px}
+
+  #retake{
+    display:block;margin:28px auto 0;
+    font-family:'Press Start 2P',monospace;font-size:10px;
+    background:transparent;color:var(--muted);border:2px solid var(--line);
+    border-radius:0;padding:12px 18px;cursor:pointer;letter-spacing:.03em;
+    box-shadow:3px 3px 0 rgba(0,0,0,.45);transition:transform .1s,color .1s,border-color .1s}
+  #retake:hover{color:var(--text);border-color:var(--violet);transform:translate(-1px,-1px)}
+  #retake:active{transform:translate(1px,1px)}
+
+  /* ── Footer ── */
+  footer{
+    margin-top:60px;padding-top:28px;border-top:2px solid var(--line);
+    text-align:center;
+  }
+  footer .fmark{
+    font-family:'Press Start 2P',monospace;font-size:11px;color:var(--pass);
+    letter-spacing:.04em;margin-bottom:16px;text-shadow:0 0 14px rgba(255,194,75,.4);
+  }
+  footer p{color:var(--muted);font-size:15px;max-width:54ch;margin:0 auto 8px}
+  footer .lic{
+    display:inline-block;margin-top:6px;
+    font-family:'Press Start 2P',monospace;font-size:9px;letter-spacing:.04em;
+    color:var(--soft);border:2px solid var(--line);padding:8px 12px;
+    box-shadow:3px 3px 0 rgba(0,0,0,.45);
+  }
+  footer a{color:var(--pass);text-decoration:none;border-bottom:1px dotted var(--pass)}
+  footer a:hover{color:var(--ship)}
+  footer .copy{margin-top:18px;font-size:13px;color:var(--line)}
+  footer .copy b{color:var(--muted);font-weight:400}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">&#x25AE; TITLES RETIRE. YOU DON&#x2019;T. <span class="dim">// trace.skill_assessment v2</span></div>
+  <h1>Are you <span class="amber">AgentOps</span>-ready?</h1>
+  <p class="sub">Prompt Engineer flatlined in a year &#x2014; the skill stack didn&#x2019;t. <b>Tap everything you&#x2019;ve actually done</b> (not just read about), skip the rest, and run the gate check. About 30 seconds.</p>
+</header>
+
+<div id="domains"></div>
+
+<div class="runbar">
+  <div class="runbar-inner">
+    <span class="progress-label"><b id="answered">0</b> SKILLS CLAIMED</span>
+    <button id="runBtn">RUN GATE CHECK</button>
+  </div>
+</div>
+
+<section id="results" aria-live="polite">
+  <div class="gate">
+    <div class="gate-light" id="gateLight">&#x2014;</div>
+    <div class="gate-text">
+      <span class="mono" id="gateStatus"></span>
+      <h2 id="gateTitle"></h2>
+      <p id="gateDesc"></p>
+    </div>
+  </div>
+
+  <div class="trace">
+    <h3>Domain trace &#xB7; span length = readiness</h3>
+    <div id="spans"></div>
+  </div>
+
+  <div class="diagnosis">
+    <div class="card profile">
+      <h4>Your profile</h4>
+      <p id="profileText"></p>
+    </div>
+    <div class="card gaps">
+      <h4>Close these gaps first</h4>
+      <ul id="gapList"></ul>
+    </div>
+  </div>
+
+  <button id="retake">&#x21BA; RETAKE ASSESSMENT</button>
+</section>
+
+<footer>
+  <div class="fmark">&#x25AE;&#x25AE; AGENTOPS READINESS CHECK</div>
+  <p>An open-source <b style="color:var(--soft)">datawithnish</b> product &#x2014; built to pair with the essay <i>&#x201C;Titles Retire. You Don&#x2019;t.&#x201D;</i></p>
+  <p>Released under the <b style="color:var(--soft)">MIT License</b>. Fork it, host it, remix it &#x2014; just keep the notice.</p>
+  <span class="lic">MIT &#xB7; FREE TO USE &amp; MODIFY</span>
+  <p class="copy"><b>&#xA9; 2026 datawithnish &#xB7; <a href="https://datawithnish.substack.com" target="_blank" rel="noopener">datawithnish.substack.com</a></b></p>
+</footer>
+
+</div>
+
+<script>
+const DOMAINS = [
+  {
+    id:"D1", name:"Ops Foundations", weight:0.15,
+    why:"The part of MLOps that survives the transition.",
+    skills:[
+      "Deployed services with Docker / Kubernetes",
+      "Built or maintained CI/CD pipelines",
+      "Run monitoring, alerting, or on-call",
+    ],
+    advice:"Spin up a small agent service end-to-end: containerize it, deploy it behind CI, and put a latency/cost dashboard on it. Infrastructure is the cheapest gap to close."
+  },
+  {
+    id:"D2", name:"LLM Fundamentals", weight:0.15,
+    why:"Agents are LLMs in a loop — their failure modes start here.",
+    skills:[
+      "Engineered prompts / context for production use",
+      "Built a RAG or retrieval pipeline",
+      "Made model-selection or token-cost tradeoffs",
+    ],
+    advice:"Build one RAG pipeline and one structured-output workflow against a real API, and track the token bill. Cost intuition is half of LLM fluency."
+  },
+  {
+    id:"D3", name:"Agent Engineering", weight:0.20,
+    why:"The construction layer: agents that plan, call tools, hand off work.",
+    skills:[
+      "Designed tools an agent calls (function calling)",
+      "Shipped with an orchestration framework (LangGraph, CrewAI, ADK…)",
+      "Worked with MCP, multi-agent handoffs, or agent memory/state",
+    ],
+    advice:"Ship one multi-step agent with at least two tools and persistent state — then break it on purpose and watch how it fails. The failure modes are the curriculum."
+  },
+  {
+    id:"D4", name:"Evals & Observability", weight:0.25,
+    why:"The heart of AgentOps: traces — not code — are the only record of what an agent did and why.",
+    skills:[
+      "Instrumented agent tracing (LangSmith, Langfuse, Braintrust, Arize…)",
+      "Turned production failures into eval / regression datasets",
+      "Used LLM-as-judge or eval-gated deployments",
+    ],
+    advice:"Instrument any agent with tracing this week, collect 50 real sessions, and write 10 eval cases from the failures. This loop is the most-demanded skill in AgentOps postings."
+  },
+  {
+    id:"D5", name:"Guardrails & Governance", weight:0.15,
+    why:"Autonomy without control is a liability. Enterprises hire AgentOps to sleep at night.",
+    skills:[
+      "Designed guardrails, approval gates, or human-in-the-loop",
+      "Handled prompt injection / agent security concerns",
+      "Written audit trails, runbooks, or run agent incident response",
+    ],
+    advice:"Take an agent you've built and write its runbook: what it may never do, who approves what, and how you'd contain it at 3 a.m. Governance thinking is rarer than framework knowledge."
+  },
+  {
+    id:"D6", name:"Systems Judgment", weight:0.10,
+    why:"The human clock: deciding what should be an agent at all.",
+    skills:[
+      "Written specs tight enough for unsupervised execution",
+      "Run failure pre-mortems on an AI system",
+      "Talked a stakeholder out of (or into) an agent",
+    ],
+    advice:"Practice the pre-mortem: before your next agent project, write down its five most likely failure modes and how you'd detect each. Judgment compounds faster than tooling knowledge."
+  },
+];
+
+const state = {};
+DOMAINS.forEach(d => d.skills.forEach((s,i) => state[d.id+"_"+i] = false));
+
+const domainsEl = document.getElementById("domains");
+DOMAINS.forEach(d => {
+  const box = document.createElement("div");
+  box.className = "domain";
+  box.innerHTML = `
+    <div class="domain-head">
+      <span class="domain-id mono">${d.id}</span>
+      <span class="domain-name">${d.name}</span>
+    </div>
+    <p class="domain-why">${d.why}</p>
+    <div class="chips" role="group" aria-label="${d.name}">
+      ${d.skills.map((s,i)=>`<button type="button" class="chip" data-key="${d.id+"_"+i}" aria-pressed="false">${s}</button>`).join("")}
+    </div>`;
+  domainsEl.appendChild(box);
+});
+
+const answeredEl = document.getElementById("answered");
+domainsEl.addEventListener("click", e => {
+  const chip = e.target.closest(".chip");
+  if(!chip) return;
+  const key = chip.dataset.key;
+  state[key] = !state[key];
+  chip.classList.toggle("on", state[key]);
+  chip.setAttribute("aria-pressed", state[key]);
+  answeredEl.textContent = Object.values(state).filter(Boolean).length;
+});
+
+const GATES = [
+  {min:0,   max:39,  status:"GATE: BLOCKED",  title:"Foundation phase", color:"var(--crit)",
+   desc:"You're earlier in the journey — and that's a fine place to be, because the field is young too. Focus on LLM fundamentals and basic ops skills before touching agent frameworks. Six focused months changes this picture entirely."},
+  {min:40,  max:64,  status:"GATE: CANARY",   title:"Transition phase", color:"var(--warn)",
+   desc:"You have real adjacent skills — the classic profile of someone mid-pivot from MLOps, data engineering, or backend work. You'd survive an AgentOps interview's first round. The gaps below are what separate you from an offer."},
+  {min:65,  max:84,  status:"GATE: STAGED ROLLOUT", title:"Nearly production-ready", color:"var(--pass)",
+   desc:"You're close. Most of the stack is there; what's likely missing is depth in one or two domains and a portfolio artifact that proves it. One shipped, instrumented, eval-gated agent project closes the distance."},
+  {min:85,  max:100, status:"GATE: SHIP",     title:"AgentOps-ready", color:"var(--ship)",
+   desc:"You're operating at or near the level these roles demand — the constraint now isn't skills, it's evidence and positioning. Write about what you've built. In a field this new, public proof of work is the strongest signal there is."},
+];
+
+function profileText(scores, overall){
+  const byId = {};
+  scores.forEach(s => byId[s.id] = s.pct);
+  const evals = byId["D4"], agents = byId["D3"], ops = byId["D1"], llm = byId["D2"], gov = byId["D5"];
+  if (ops >= 65 && evals < 45)
+    return "<b>The classic MLOps profile.</b> Your infrastructure muscle transfers directly — but AgentOps inverts the monitoring problem. You're used to watching metrics drift on a deterministic artifact; now you need to trace reasoning chains on a non-deterministic one. Your single highest-leverage move is the eval loop: traces → failure analysis → regression datasets.";
+  if (agents >= 65 && (ops < 45 || gov < 45))
+    return "<b>The builder profile.</b> You can make agents work — the gap is making them operable. Plenty of people can ship a demo; far fewer can put a deployment gate, an audit trail, and an incident runbook around it. That operational wrapper is exactly what the 'Ops' in AgentOps pays for.";
+  if (llm >= 65 && agents < 45)
+    return "<b>The LLM-native profile.</b> You understand the models deeply but haven't yet wired them into autonomous loops. Good news: this is the shortest bridge on the board. Pick one orchestration framework, ship one multi-tool agent, and your existing fundamentals do the rest.";
+  if (overall >= 70)
+    return "<b>The balanced profile.</b> No domain is dragging you down, which is rarer than it sounds — most candidates are spiky. Your play is depth-plus-evidence: pick your strongest domain, go one level deeper than the market, and publish what you learn.";
+  return "<b>The explorer profile.</b> Your skills are spread across domains rather than deep in any one. That breadth is genuinely useful context — but hiring gates open on depth. Pick the two domains where you scored highest and concentrate there for the next quarter.";
+}
+
+document.getElementById("runBtn").addEventListener("click", () => {
+  const scores = DOMAINS.map(d => {
+    const hits = d.skills.filter((s,i)=>state[d.id+"_"+i]).length;
+    const pct = Math.round(hits / d.skills.length * 100);
+    return {id:d.id, name:d.name, pct, weight:d.weight, advice:d.advice};
+  });
+  const overall = Math.round(scores.reduce((a,s)=>a + s.pct*s.weight, 0));
+  const gate = GATES.find(g => overall >= g.min && overall <= g.max);
+
+  const light = document.getElementById("gateLight");
+  light.textContent = overall + "%";
+  light.style.background = "color-mix(in srgb, "+gate.color+" 18%, transparent)";
+  light.style.border = "2px solid "+gate.color;
+  light.style.color = gate.color;
+  document.getElementById("gateStatus").textContent = gate.status;
+  document.getElementById("gateStatus").style.color = gate.color;
+  document.getElementById("gateTitle").textContent = gate.title;
+  document.getElementById("gateDesc").textContent = gate.desc;
+
+  const spansEl = document.getElementById("spans");
+  spansEl.innerHTML = "";
+  scores.forEach(s => {
+    const color = s.pct >= 65 ? "var(--pass)" : s.pct >= 34 ? "var(--warn)" : "var(--crit)";
+    const row = document.createElement("div");
+    row.className = "span-row";
+    row.innerHTML = `
+      <div class="span-name">${s.name}</div>
+      <div class="span-track"><div class="span-bar" style="background:${color}"></div></div>
+      <div class="span-pct">${s.pct}%</div>`;
+    spansEl.appendChild(row);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      row.querySelector(".span-bar").style.width = Math.max(s.pct,3) + "%";
+    }));
+  });
+
+  document.getElementById("profileText").innerHTML = profileText(scores, overall);
+
+  const gapsEl = document.getElementById("gapList");
+  gapsEl.innerHTML = "";
+  const weakest = [...scores].sort((a,b)=>a.pct - b.pct || b.weight - a.weight).slice(0,3)
+    .filter(s => s.pct < 85);
+  if (weakest.length === 0){
+    gapsEl.innerHTML = "<li>No blocking gaps. Your next move is evidence: ship something public, instrument it, and write up what the traces taught you.</li>";
+  } else {
+    weakest.forEach(s => {
+      const li = document.createElement("li");
+      li.innerHTML = "<b style='color:var(--text)'>"+s.name+" ("+s.pct+"%):</b> "+s.advice;
+      gapsEl.appendChild(li);
+    });
+  }
+
+  const results = document.getElementById("results");
+  results.classList.add("show");
+  results.scrollIntoView({behavior:"smooth", block:"start"});
+});
+
+document.getElementById("retake").addEventListener("click", () => {
+  Object.keys(state).forEach(k=>state[k]=false);
+  domainsEl.querySelectorAll(".chip.on").forEach(b=>{b.classList.remove("on");b.setAttribute("aria-pressed","false")});
+  answeredEl.textContent = 0;
+  document.getElementById("results").classList.remove("show");
+  window.scrollTo({top:0, behavior:"smooth"});
+});
+</script>
+</body>
+</html>
